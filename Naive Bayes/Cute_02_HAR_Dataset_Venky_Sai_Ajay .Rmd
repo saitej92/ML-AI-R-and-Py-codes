@@ -1,0 +1,202 @@
+---
+title: "Cute02_HARDataset"
+author: "Venkatesh Velamur/Sai Teja/ Ajay Gupta"
+date: "20 August 2017"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Clearing the global enviornment.
+```{r}
+rm(list = ls(all=TRUE))
+```
+
+## Importing the reqired libraries
+```{r}
+library(ggbiplot)
+library(caret)
+library(e1071)
+library(nnet)
+```
+
+## Setting the directory and Reading the Datasets
+```{r}
+setwd("C:/Users/saite/Desktop/Cute_02_data set_4/HAR_Dataset")
+
+sensorData_train = read.csv("train.csv", sep = ",")
+sensorData_test = read.csv("test.csv", sep = ",")
+```
+
+
+## Understanding the data
+```{r}
+str(sensorData_train)
+
+#summary(sensorData_train)
+
+#head(sensorData_train)
+
+#tail(sensorData_train)
+```
+
+## Removing the identifier column "Subject" as it is not needed for model building.
+```{r}
+sensorData_train <- sensorData_train[,-562]
+sensorData_test <- sensorData_test[,-562]
+
+## Checking for NAs
+sum(is.na(sensorData_train))
+sum(is.na(sensorData_test))
+```
+
+## As this is evident from the data set there are 561 predictor variables, we need to do PCA analysis. 
+## Using princomp function to do PCA the analysis
+```{r}
+
+sensorData.predictors <- sensorData_train[,-562]
+
+# compute PCs
+#pca.out = princomp(sensorData.predictors)
+pca.out = prcomp(sensorData.predictors,center = T, scale.=T)
+names(pca.out)
+#summary(pca.out)
+```
+
+## Analyzing the PCA data
+```{r}
+## Getting cumulative proportions of variations to choose number of principal components.
+vars <- apply(pca.out$x, 2, var)
+props <- vars / sum(vars)
+cummulative_Proportions = cumsum(props)
+cummulative_Proportions = as.matrix(cummulative_Proportions)
+cummulative_Proportions[1:50,]
+
+## Plotting the pca.out
+plot(pca.out)
+screeplot(pca.out, type = "lines")
+
+## using the ggbiplot to plot the sensordata on two principal components axis
+sensorData_ggbiplot <- ggbiplot(pca.out, obs.scale = 1, var.scale = 1,groups = sensorData_train$Activity, ellipse = TRUE, circle = T) 
+sensorData_ggbiplot  + scale_color_discrete(name = '')
+
+```
+
+
+## Based on the above plot and cumulative proportions is evident that 80% of the variation in the data is explained by only 26 components. Hence, considering these 26 components only as new dataset for model building.
+```{r}
+compressed_features = pca.out$x[,1:26] 
+#compressed_features
+
+sensor_pca_data = data.frame(compressed_features, Activity = sensorData_train$Activity)
+```
+
+
+## Plotting the Principal components in training dataset
+```{r}
+plot(sensor_pca_data$PC1, sensor_pca_data$PC2, col = sensor_pca_data$Activity, xlab = "Principal Component 1", ylab = "Principal Component 2",  main = "Sensor data after PCA")
+
+```
+
+
+# Building the Multinom model on the training data
+```{r}
+mn_Model = multinom(Activity~., data = sensor_pca_data)
+summary(mn_Model)
+```
+
+
+
+## Predicting the trained model on the test dataset
+```{r}
+# Predicting on Training data
+predOnTrain = predict(mn_Model, newdata = sensor_pca_data) 
+
+# Predicting on Test Data
+pred = predict(pca.out, newdata = sensorData_test)
+predict_OnTest = predict(mn_Model, newdata = pred)
+
+
+# Creating Confusion matrix on train and test data
+confMatrix_train = confusionMatrix( data = predOnTrain, reference = sensor_pca_data$Activity)
+confMatrix_test = confusionMatrix( data = predict_OnTest, reference = sensorData_test$Activity)
+
+print(confMatrix_train)
+print(confMatrix_test)
+
+```
+
+## Calculating Precision, Recall and F1 Score for each class on the Multinom Model
+```{r}
+confusionmatrix = as.matrix(confMatrix_test)
+
+n = sum(confusionmatrix) # number of instances
+nc = nrow(confusionmatrix) # number of classes
+
+diag = diag(confusionmatrix) # number of correctly classified instances per class 
+rowsums = apply(confusionmatrix, 1, sum) # number of instances per class
+colsums = apply(confusionmatrix, 2, sum) # number of predictions per class
+p = rowsums / n # distribution of instances over the actual classes
+q = colsums / n # distribution of instances over the predicted classes
+ 
+accuracy = sum(diag) / n 
+ 
+precision = diag / colsums 
+
+recall = diag / rowsums  
+ 
+f1 = 2 * precision * recall / (precision + recall) 
+ 
+data.frame(precision, recall, f1)
+```
+
+## Building another model using Naive Bayes Algorithm
+```{r}
+
+nb_model <- naiveBayes(Activity~.,data = sensor_pca_data)
+
+nb_model
+
+nb_predict_train <- predict(nb_model,sensor_pca_data[,-11])
+
+nb_predict_test = predict(nb_model, newdata = pred)
+
+nb_confMatrix_train = confusionMatrix(data = nb_predict_train, reference = sensor_pca_data$Activity)
+
+nb_confMatrix_test = confusionMatrix( data = nb_predict_test, reference = sensorData_test$Activity)
+
+print(nb_confMatrix_train)
+
+print(nb_confMatrix_test)
+
+```
+
+## Calculating Precision, Recall and F1 Score for each class on the Naive Bayes Model
+```{r}
+confusionmatrix_nb = as.matrix(nb_confMatrix_test)
+
+
+# Calculating Precision, Recall and F1 Score for each class
+
+n_nb = sum(confusionmatrix_nb) # number of instances
+nc_nb = nrow(confusionmatrix_nb) # number of classes
+
+diag_nb = diag(confusionmatrix_nb) # number of correctly classified instances per class 
+rowsums_nb = apply(confusionmatrix_nb, 1, sum) # number of instances per class
+colsums_nb = apply(confusionmatrix_nb, 2, sum) # number of predictions per class
+p_nb = rowsums_nb / n_nb # distribution of instances over the actual classes
+q_nb = colsums_nb / n_nb # distribution of instances over the predicted classes
+ 
+accuracy_nb = sum(diag_nb) / n_nb
+ 
+precision_nb = diag_nb / colsums_nb
+
+recall_nb = diag_nb / rowsums_nb  
+ 
+f1_nb = 2 * precision_nb * recall_nb / (precision_nb + recall_nb) 
+ 
+data.frame(precision_nb, recall_nb, f1_nb)
+
+```
+
+
