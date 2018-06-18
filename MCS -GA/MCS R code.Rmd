@@ -1,0 +1,56 @@
+---
+title: "MCS GA assignment"
+author: "Sai teja Gollapinni"
+date: "Sept 2, 2017"
+output: html_document
+---
+# Monte Carlo Assignment
+#problem statement
+There is a 90% and 10% chance of winning full and part projects
+respectively. Full project will have 20-24 modules and part project will 10-12 modules.
+There are about 50-100 tasks per modules and each task will take 5-10 days. The
+resources vary between 3 to 7. What is the most likely time to complete the project?
+
+#clear the environment
+```{r}
+rm(list=ls(all=T))
+```
+
+#Function to give output of time needed for no of simulations(input)
+```{r}
+noofDaysneeded=function(numSims){
+  time=0
+for(i in 1:numSims){
+  FullorPart= runif(1,0,1)
+## #90 % and 10 % for full and part respectively
+if(FullorPart<=0.1)   {  #part project probbality and it takes 10-12 modules 
+TotalModules=sample(10:12, 1)
+}
+else{
+#probability greater than 10% since 90 is for full time
+TotalModules=sample(20:24, 1)
+}
+##Random generation values(vectors) for tasks and noof people per module
+NooftasksperModule= sample(50:100, TotalModules, replace=T)
+TotalTasks= sum(NooftasksperModule)
+##calculating time taken for all the tasks as it is given that it takes atleast 5-10 days per each task
+TimetoDoTasks= sum(sample(5:10, TotalTasks, replace = T))
+#randomly generate no of resources as its given that it ranges from 3-7
+NoofResources=sample(3:7, 1,replace = T)
+
+#Time required for those tasks to complete with respect to the above simulation: Total time /resource
+Days= TimetoDoTasks/NoofResources
+}
+cat("Days required is : ", Days, "for", numSims, "simulations", "\n")
+}
+```
+##  Final Simulation steps
+```{r}
+#no of times simulation performed 
+numSims =c(10,100,1000, 10000,100000,1000000)
+for(i in numSims)
+{  
+  Days= noofDaysneeded(i)
+  }
+
+```

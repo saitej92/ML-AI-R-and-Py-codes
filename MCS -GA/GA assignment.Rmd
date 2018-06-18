@@ -1,0 +1,59 @@
+---
+title: "GA assignment"
+author: "Sai teja Gollapinni"
+date: "September 21, 2017"
+output: html_document
+---
+
+```{r}
+rm(list = ls(all = TRUE))
+set.seed(123)
+library(GA)
+```
+# TSP problem example this is the data of 10 cities around the world
+```{r}
+library(igraph)
+df<- read.csv("C:/Users/saite/Desktop/MC GA assignment/assignment-mcs-ga-saitej92-master/GA/distanceinfo.csv")
+D<- as.matrix(df)
+colnames(D)
+rownames(D)=colnames(D)
+```
+
+# given a tour, calculate the total distance
+```{r}
+tourLength <- function(tour, distMatrix) {
+    tour <- c(tour, tour[1])
+    route <- embed(tour, 2)[, 2:1]
+    sum(distMatrix[route])
+}
+```
+# inverse of the total distance is the fitness
+```{r}
+TSPFitness <- function(tour, ...) 1/tourLength(tour, ...)
+# run a GA algorithm
+##Ga_algorithm<- ga(type = "permutation", fitness = tpsFitness, distMatrix = D,min = 1,max = 10, pmutation = 0.2, names = rownames(D))
+ga_function=ga(type = "permutation", fitness = TSPFitness, distMatrix = D,min = 1,max = 10, popSize = 50, run = 500,pmutation = 0.2,names = rownames(D))
+#rownames(D)
+#colnames(D)
+summary(ga_function)
+```
+
+# 2-d coordinates
+```{r}
+mds <- cmdscale(df)
+x <- mds[, 1]
+y <- -mds[, 2]
+n <- length(x)
+```
+
+##Plotting the graph and visualisation 
+```{r}
+plot(x, y, type = "n", asp = 1, xlab = "", ylab = "", main = "Tour Map for TSP GA")
+points(x, y, pch = 16, cex = 1.5, col = "grey")
+abline(h = pretty(range(x), 10), v = pretty(range(y), 10), col = "lightgrey")
+tour <- ga_function@solution[1, ]
+tour <- c(tour, tour[1])
+n <- length(tour)
+arrows(x[tour[-n]], y[tour[-n]], x[tour[-1]], y[tour[-1]], length = 0.15, angle = 45,col = "steelblue", lwd = 2)
+text(x, y, rownames(D), cex = 0.9,pos=1)
+```
