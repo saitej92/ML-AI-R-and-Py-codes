@@ -1,0 +1,187 @@
+---
+title: "Earth quake seismic data Mith"
+author: "Sai teja Gollapinni"
+date: "August 12, 2017"
+output: html_document
+---
+#clear the variables  
+```{r}
+rm(list=ls(all=T))
+```
+
+
+#reading the data
+```{r }
+setwd("C:\\Users\\saite\\Desktop\\Mith12817")
+getwd()
+library(foreign)
+SeismicinTrain<-read.arff("train.arff")
+SeismicinTest<- read.arff("test.arff")
+Validation<-read.arff("validation.arff")
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r}
+library(lattice)
+library(ggplot2)
+library(caret)
+```
+#Knowing the attribues
+```{r}
+str(SeismicinTrain)
+str(SeismicinTest)
+str(Validation)
+
+#sum(is.na(SeismicinTrain))
+#na.omit(SeismicinTrain)
+#str(SeismicinTrain)
+```
+#Finding out the zero variables
+```{r}
+library(caret)
+Unvaryingvarible<-nearZeroVar(SeismicinTrain, saveMetrics= TRUE)
+Unvaryingvarible
+```
+#removing zero var
+```{r}
+library(dplyr)
+SeismicinTrain<-SeismicinTrain %>% select(-c(Attr15,Attr16 ,Attr17 ))
+```
+
+#removing Na and imputing 
+```{r}
+#colMeans(is.na(SeismicinTrain))
+#colSums(is.na(SeismicinTrain))
+sum(is.na(SeismicinTrain))
+library(DMwR)
+SeismicinTrain<-centralImputation(data=SeismicinTrain)
+#rm(SeismicinTrain_Imputed)
+sum(is.na(SeismicinTrain))
+```
+
+#removing with high correlation 
+```{r}
+SeismicinTrain$class<-as.factor(as.character(SeismicinTrain$class))
+toCorrelate<-SeismicinTrain %>% select(-c(Attr2,Attr3,Attr4,Attr9 ,class))
+```
+
+```{r}
+correlationMatrix <- cor(toCorrelate)
+print(correlationMatrix)
+```
+
+```{r}
+correlationMatrix[upper.tri(correlationMatrix)]<-0#this way I only pick one of the mirror-imaged highly correlated pair
+diag(correlationMatrix)<-0#and I don't remove the highly-correlated-with-itself group
+print(correlationMatrix)
+```
+#Apply 85 percent correlation after removing high correlated groups 
+```{r}
+apply(correlationMatrix,2, function(x) any(abs(x)>=0.85))
+```
+
+```{r}
+cor(toCorrelate$Attr18, toCorrelate)
+```
+
+```{r}
+SeismicinTrain<-SeismicinTrain %>% select(-Attr18)
+```
+
+```{r}
+sd(SeismicinTrain$Attr14)
+sd(SeismicinTrain$Attr13)
+sd(SeismicinTrain$Attr12)
+sd(SeismicinTrain$Attr11)
+
+#dropping variable with least deviation.
+SeismicinTrain<-SeismicinTrain %>% select(-Attr14)
+```
+#build the Logistic reg model 
+```{r}
+set.seed(42)
+
+Seismic_logisticmod<-train(class ~ ., data=SeismicinTrain, method="glm")
+#confusionMatrix(predict(Seismic_logisticmod,SeismicinTrain), reference=SeismicinTrain$class, positive="1")
+#summary(Seismic_logisticmod)
+
+
+```
+#preprocessing for validation 
+```{r}
+Validation$class=as.factor(as.character(Validation$class))
+
+library(caret)
+Unvaryingvarible1<-nearZeroVar(Validation, saveMetrics= TRUE)
+Unvaryingvarible1
+```
+
+```{r}
+library(dplyr)
+Validation<-Validation %>% select(-c(Attr15,Attr16 ,Attr17 ))
+```
+
+
+```{r}
+#colMeans(is.na(SeismicinTrain))
+#colSums(is.na(SeismicinTrain))
+sum(is.na(Validation))
+```
+
+
+```{r}
+Validation$class<-as.factor(as.character(Validation$class))
+toCorrelate1<-Validation %>% select(-c(Attr2,Attr3,Attr4,Attr9 ,class))
+```
+
+```{r}
+correlationMatrix1<- cor(toCorrelate1)
+print(correlationMatrix1)
+```
+
+```{r}
+correlationMatrix[upper.tri(correlationMatrix)]<-0#this way I only pick one of the mirror-imaged highly correlated pair
+diag(correlationMatrix)<-0#and I don't remove the highly-correlated-with-itself group
+print(correlationMatrix)
+```
+#Apply 85 percent correlation after removing high correlated groups 
+```{r}
+apply(correlationMatrix,2, function(x) any(abs(x)>=0.85))
+```
+
+```{r}
+cor(toCorrelate1$Attr18, toCorrelate1)
+```
+
+```{r}
+Validation<-Validation %>% select(-Attr18)
+```
+#confusion matrix and prediction on test data and submit file generation.
+```{r}
+sd(Validation$Attr14)
+sd(Validation$Attr13)
+sd(Validation$Attr12)
+sd(Validation$Attr11)
+
+#dropping variable with least deviation.
+Validation<-Validation %>% select(-Attr14)
+#confusionMatrix(predict(Seismic_logisticmod,Validation), reference=Validation$class, positive="1")
+pred <-  predict(Seismic_logisticmod,Validation)
+library(ROCR)
+prob_test<-predict(Seismic_logisticmod,newdata =  SeismicinTest,type="prob")
+pred_test= ifelse(prob_test>0.05,1,0)
+confusionMatrix(Validation$class,pred)
+submit <-  as.data.frame(cbind(as.numeric(SeismicinTest[,1]),pred_test))
+#rm(submit)
+#df$class = ifelse(df$class > 2,0,1)
+colnames(submit)<- c("Attr1","class")
+df <- submit
+
+write.csv(df, file = "MyDataGLm.csv", row.names = F)
+
+```
+
+

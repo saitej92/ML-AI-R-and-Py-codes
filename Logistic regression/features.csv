@@ -1,0 +1,23 @@
+Attribute_Name,Data_Description,Data_Type
+Attr1,Row index,Numerical
+Attr2,"Hazard assessment  got by the seismic  method (a - lack of hazard, b - low hazard, c - high hazard, d - danger state);",categorical
+Attr3,Hazard assessment got  by the  seismoacoustic method;,categorical
+Attr4,"Type of a shift (W - coal-getting, N -preparation shift);  ",categorical
+Attr5,Seismic energy within previous shift by the most active geophone (GMax) out of  geophones monitoring the longwall,numeric
+Attr6,No. of  pulses recorded within previous shift by GMax,numeric
+Attr7,Deviation of energy within previous shift by GMax from average energy recorded  during eight previous shifts,numeric
+Attr8,Deviation of a number of pulses within previous shift by GMax from average number  of pulses recorded during eight previous shifts; ,numeric
+Attr9,Result of shift seismic hazard assessment in the mine working obtained by the  seismoacoustic method based on registration coming form GMax only; ,categorical
+Attr10,No. of  seismic bumps within previous shift;Ê,numeric
+Attr11,"No. of    seismic bumps (energy range [10^2,10^3)) registered within previous shift",numeric
+Attr12,"No. of  seismic bumps (energy range [10^3,10^4)) registered within previous shift",numeric
+Attr13,"No. of  seismic bumps (energy range [10^4,10^5)) registered within previous shift;",numeric
+Attr14,"No. of  seismic bumps (energy range [10^5,10^6)) registered within the last shift;",numeric
+Attr15,"No. of  seismic bumps (energy range [10^6,10^7)) registered within previous shift",numeric
+Attr16,"No. of  seismic bumps (energy range [10^7,10^8)) registered within previous shift;  ",numeric
+Attr17,"No. of  seismic bumps (in energy range [10^8,10^10)) registered within previous shift;",numeric
+Attr18,Total energy of seismic bumps within previous shift;,numeric
+Attr19,The maximum energy of the seismic bumps within previous shift,numeric
+class,Target attribute Ð,categorical
+," '1' means that high energy seismic bump occurred in the next shift  ('hazardous state'),",
+, '0' means that no high energy seismic bumps occurred in the next shift ('non-hazardous state'),
