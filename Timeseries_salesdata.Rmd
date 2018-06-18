@@ -1,0 +1,195 @@
+---
+title: "Phd Time series Analysis"
+author: "Sai teja Gollapinni"
+date: "November 18, 2017"
+output: html_document
+---
+
+###clear the environment  
+```{r}
+rm(list=ls(all=T))
+```
+###Loading the data
+```{r}
+setwd("C:/Users/saite/Documents/PHD 181117")
+getwd()
+```
+
+##Required Libraries
+```{r }
+library(forecast)
+library(imputeTS)
+
+```
+###Read the data and other Preprocessing
+```{r}
+Traindata_sales= read.csv(file = "Train.csv",sep=",", header = T)
+sum(is.na(Traindata_sales))
+colSums(is.na(Traindata_sales))
+names(Traindata_sales)
+colnames(Traindata_sales)[4] = 'SalesInThousandDollars'
+dim(Traindata_sales)
+head(Traindata_sales,10)
+str(Traindata_sales)
+summary(Traindata_sales)
+```
+
+##Split the data into three categories
+```{r}
+sales_Male =Traindata_sales[which(Traindata_sales$ProductCategory == "MenClothing"),]
+sales_Female =Traindata_sales[which(Traindata_sales$ProductCategory == "WomenClothing"),]
+sales_Others =Traindata_sales[which(Traindata_sales$ProductCategory == "OtherClothing"),]
+sum(is.na(sales_Male))
+sum(is.na(sales_Female))
+sum(is.na(sales_Others))
+```
+##NA and Imputations
+```{r}
+sales_Male_Intp=na.interpolation(sales_Male)
+sales_Male_locf=na.locf(sales_Male)
+sales_Female_Intp=na.interpolation(sales_Female)
+sales_Female_locf=na.locf(sales_Female)
+sales_Others_Intp=na.interpolation(sales_Others)
+sales_Others_locf=na.locf(sales_Others)
+```
+##Time series models
+```{r}
+Salesmale = ts(sales_Male_locf$SalesInThousandDollars, frequency = 12, start = c(2009,1))
+salesfemale=ts(sales_Female_locf$SalesInThousandDollars,frequency = 12,start = c(2009,1))
+salesothers=ts(sales_Others_locf$SalesInThousandDollars,frequency = 12,start = c(2009,1))
+```
+#plot the time series male
+```{r}
+par(mfrow=c(1,3))
+pacf(Salesmale)
+par(mfrow=c(1,3))
+Acf(Salesmale)
+pacf(salesfemale)
+Acf(salesfemale)
+pacf(salesothers)
+Acf(salesothers)
+
+plot.ts(Salesmale)
+plot.ts(salesfemale)
+plot.ts(salesothers)
+
+```
+###Train test split
+```{r}
+library(forecast)
+Sales_trainm = subset(sales_Male_locf, Year!="2015")
+Sales_testm = subset(sales_Male_locf, Year =="2015")
+Maletrain_ts=ts(Sales_trainm$SalesInThousandDollars,frequency = 12,start = c(2009,1))
+Maletest_ts=ts(Sales_testm$SalesInThousandDollars,frequency = 12,start = c(2015,1))
+SalesHW <-  HoltWinters(Maletrain_ts)
+summary(SalesHW)
+SalesHW$fitted
+plot(SalesHW)
+MAPE_train_HW = mean(abs(Maletrain_ts-SalesHW$fitted[,"xhat"])/abs(Maletrain_ts))*100
+```
+##Forecast##
+```{r}
+Salesforecast_HW = forecast:::forecast.HoltWinters(SalesHW, h=12)
+MAPE_test_HW = mean(abs(Maletest_ts - Salesforecast_HW$mean)/abs(Maletest_ts))*100
+forecast:::plot.forecast(Salesforecast_HW, shadecols="oldstyle")
+```
+## Auto Arima
+```{r}
+SalesMale_autoArima = auto.arima(Maletrain_ts, ic='aic')
+Salesforecast_autoArima = forecast:::forecast.Arima(SalesMale_autoArima,h=12)
+forecast:::plot.forecast(Salesforecast_autoArima)
+MAPE_train_AutoArima =mean(abs(Maletrain_ts -SalesMale_autoArima$fitted)/abs(Maletrain_ts))*100
+MAPE_test_AutoArima <- mean(abs(Maletest_ts-Salesforecast_autoArima$mean)/abs(Maletest_ts))*100
+```
+##HoltWinters
+```{r}
+ProdCat_Male = ts(sales_Male_locf$SalesInThousandDollars, frequency = 12,start=c(2009,1))
+Prodcat_HW =  HoltWinters(ProdCat_Male)
+Prodcat_HW= forecast:::forecast.HoltWinters(Prodcat_HW, h=12)
+forecast:::plot.forecast(Prodcat_HW, shadecols="oldstyle")
+```
+write.csv(Prodcat_HW, file = "SubmissionHw1.csv", row.names = F)
+```
+##Auto Arima
+```{r}
+Prodcat_Autoarima =  auto.arima(ProdCat_Male)
+Prodcat_Autoarima = forecast:::forecast.Arima(Prodcat_Autoarima,h=12)
+write.csv(Prodcat_Autoarima, file = "submDataAA1.csv", row.names = F)
+```
+######Female####################################################################
+#####Train test split
+```{r}
+library(forecast)
+Sales_trainf = subset(sales_Female_locf, Year!="2015")
+Sales_testf = subset(sales_Female_locf, Year =="2015")
+Femaletrain_ts=ts(Sales_trainf$SalesInThousandDollars,frequency = 12,start = c(2009,1))
+Femaletest_ts=ts(Sales_testf$SalesInThousandDollars,frequency = 12,start = c(2015,1))
+femaleSalesHW <-  HoltWinters(Femaletrain_ts)
+#femaleSalesHW$fitted
+MAPE_trainf_HW = mean(abs(Femaletrain_ts-SalesHW$fitted[,"xhat"])/abs(Femaletrain_ts))*100
+########Forecast##
+FemaleSalesforecast_HW = forecast:::forecast.HoltWinters(femaleSalesHW, h=12)
+MAPE_testf_HW = mean(abs(Femaletest_ts - FemaleSalesforecast_HW$mean)/abs(Femaletest_ts))*100
+forecast:::plot.forecast(FemaleSalesforecast_HW, shadecols="oldstyle")
+```
+## Auto Arima
+```{r}
+SalesFemale_autoArima = auto.arima(Femaletrain_ts, ic='aic')
+Salesforecast_autoArimaf <- forecast:::forecast.Arima(SalesFemale_autoArima,h=12)
+forecast:::plot.forecast(Salesforecast_autoArimaf)
+MAPE_trainf_HW = mean(abs(Femaletrain_ts - femaleSalesHW$fitted[,"xhat"])/abs(Femaletrain_ts))*100
+MAPE_trainf_AutoArima <- mean(abs(Femaletrain_ts - SalesFemale_autoArima$fitted)/abs(Femaletrain_ts))*100
+MAPE_testf_AutoArima <- mean(abs(Femaletest_ts - Salesforecast_autoArimaf$mean)/abs(Femaletest_ts))*100
+```
+##HoltWinters
+```{r}
+ProdCat_Female = ts(sales_Female_locf$SalesInThousandDollars, frequency = 12,start=c(2009,1))
+Prodcat_HW_f <-  HoltWinters(ProdCat_Female)
+Prodcat_HW_f <- forecast:::forecast.HoltWinters(Prodcat_HW_f, h=12)
+write.csv(Prodcat_HW_f, file = "Submission2.csv", row.names = F)
+##AutoArima
+Prodcat_Autoarimaf <-  auto.arima(ProdCat_Female)
+Prodcat_Autoarimaf <- forecast:::forecast.Arima(Prodcat_Autoarimaf,h=12)
+write.csv(Prodcat_Autoarimaf, file = "submDataAA2.csv", row.names = F)
+```
+######Others############################################################
+###Train test split
+```{r}
+library(forecast)
+Sales_traino = subset(sales_Others_locf, Year!="2015")
+Sales_testo = subset(sales_Others_locf, Year =="2015")
+Othertrain_ts=ts(Sales_traino$SalesInThousandDollars,frequency = 12,start = c(2009,1))
+Othertest_ts=ts(Sales_testo$SalesInThousandDollars,frequency = 12,start = c(2015,1))
+OthersSalesHW = HoltWinters(Othertrain_ts)
+#summary(SalesHW)
+#femaleSalesHW$fitted
+MAPE_trainO_HW = mean(abs(Othertrain_ts-OthersSalesHW$fitted[,"xhat"])/abs(Othertrain_ts))*100
+########Forecast
+OtherSalesforecast_HW = forecast:::forecast.HoltWinters(OthersSalesHW, h=12)
+MAPE_testO_HW = mean(abs(Othertest_ts - OtherSalesforecast_HW$mean)/abs(Othertest_ts))*100
+forecast:::plot.forecast(OtherSalesforecast_HW, shadecols="oldstyle")
+```
+## Auto Arima
+```{r}
+SalesOther_autoArima = auto.arima(Othertrain_ts, ic='aic')
+Salesforecast_autoArimaO <- forecast:::forecast.Arima(SalesOther_autoArima,h=12)
+forecast:::plot.forecast(Salesforecast_autoArimaO)
+MAPE_trainO_HW = mean(abs(Othertrain_ts - OthersSalesHW$fitted[,"xhat"])/abs(Othertrain_ts))*100
+
+MAPE_trainO_AutoArima = mean(abs(Othertrain_ts - SalesOther_autoArima$fitted)/abs(Othertrain_ts))*100
+
+MAPE_testO_AutoArima = mean(abs(Othertest_ts -Salesforecast_autoArimaO$mean)/abs(Othertest_ts))*100
+```
+##HoltWinters
+```{r}
+ProdCat_other = ts(sales_Others_locf$SalesInThousandDollars, frequency = 12,start=c(2009,1))
+Prodcat_HW_O =  HoltWinters(ProdCat_other)
+Prodcat_HW_O <- forecast:::forecast.HoltWinters(Prodcat_HW_O, h=12)
+write.csv(Prodcat_HW_O, file = "Submission3.csv", row.names = F)
+```
+##Auto Arima
+```{r}
+Prodcat_AutoarimaO <-  auto.arima(ProdCat_other)
+Prodcat_AutoarimaO <- forecast:::forecast.Arima(Prodcat_AutoarimaO,h=12)
+write.csv(Prodcat_AutoarimaO, file = "submDataAA3.csv", row.names = F)
+```{r}
