@@ -1,0 +1,315 @@
+---
+title: "Cute03-Bankruptcy"
+author: "sai teja "
+date: "9/2/2017"
+output: html_document
+---
+#Clear Environment.
+```{r}
+rm(list=ls(all=T))
+library(randomForest)
+library(rpart)
+library(C50)
+library(DMwR)
+library(caret)
+library(plyr)
+library(corrplot)
+library(vegan)
+library(ROSE)
+```
+## R Markdown
+
+##Functions
+#Build C5.0 and check Importance.
+```{r}
+buildC5.0=function(formula,dataSet){
+c5_tree=C5.0(formula,dataSet)
+# Use the rules = T argument if you want to extract rules later from the model
+c5_rules <- C5.0(formula, dataSet, rules = TRUE)
+print('variable Importance')
+C5imp(c5_tree, metric = "usage")
+print(c5_rules)
+return(c5_tree)
+}
+```
+#Build CART and check variable Importance.
+```{r}
+buildCART=function(formula,dataSet){
+reg_tree= rpart(formula, dataSet)
+printcp(reg_tree)
+print('variable Importance')
+print(reg_tree$variable.importance)
+#asRules(reg_tree) refer line 13.
+return(reg_tree)
+}
+```
+##Data Loading.
+```{r}
+rm(bankData)
+bankData=read.csv(file="C:/Users/saite/Desktop/Cute 03 data set/bankdata.csv")
+summary(bankData)
+colSums(is.na(bankData))
+```
+##Check for the Data Imputation.
+```{r}
+for(i in 1:64){
+  attr=paste("Attr",i,sep = '')
+  if(sum(is.na(bankData[,attr]))<3000){
+    print(attr)
+    print(sum(is.na(bankData[,attr])))
+    central_val=median(bankData[,attr],na.rm = TRUE)
+    bankData[,attr]= ifelse(!is.na(bankData[,attr]), bankData[,attr], central_val)
+    }
+}
+colSums(is.na(bankData))
+
+##Omitted attributes 37,45,21
+bankData$Attr37=NULL
+bankData$Attr45=NULL
+bankData$Attr21=NULL
+##Imputing the NA s which are less than 1000 with their median.
+##When tried with knn Imputation
+rm(testData,trainData,train_RowIDs)
+```
+##Corelation Plot.
+```{r}
+bankDataWithoutAttr37=bankData
+cex.before <- par("cex")
+par(cex = 0.55)
+corrplot(cor(bankDataWithoutAttr37[,1:15], use = "complete.obs"),
+         method = "number", 
+         order = "AOE",
+         tl.cex = 1/par("cex"),
+         cl.cex = 1/par("cex"), addCoefasPercent = TRUE )
+par(cex = cex.before)
+
+corrplot(cor(bankDataWithoutAttr37[,c("Attr2","Attr10","Attr7","Attr14","Attr18","Attr17","Attr11","Attr9","Attr8","Attr22","Attr23","Attr31","Attr33","Attr35","Attr34","Attr42","Attr44","Attr43","Attr54","Attr53","Attr49","Attr48","Attr56","Attr58","Attr62")],
+             use = "complete.obs"),
+             method = "number",
+             tl.cex = 1/par("cex"),
+             cl.cex = 1/par("cex"))
+
+# Drop the predictors which have r= 1
+correlatedPredictors = c("Attr2","Attr7","Attr17","Attr11","Attr9","Attr23","Attr35","Attr34","Attr33")
+bankData_1 = bankDataWithoutAttr37[,!names(bankDataWithoutAttr37) %in% correlatedPredictors]
+dim(bankData_1) # 43004 55
+
+corrplot(cor(bankData_1[,1:37], use = "complete.obs"),
+         method = "number", 
+         order = "AOE",
+         tl.cex = 1/par("cex"),
+         cl.cex = 1/par("cex"), addCoefasPercent = TRUE )
+
+# Check again for completely correlated predictors
+corrplot(cor(bankData_1[,c("Attr10","Attr14","Attr18","Attr8","Attr22","Attr31","Attr42","Attr44","Attr43","Attr54","Attr53","Attr49","Attr48","Attr56","Attr58","Attr62")],
+             use = "complete.obs"),
+         method = "number",
+         tl.cex = 1/par("cex"),
+         cl.cex = 1/par("cex"))
+
+# Again found higly correlted variables, Drop them
+correlatedPredictors_2 = c("Attr22","Attr44","Attr43","Attr58")
+bankData_2 = bankData_1[,!names(bankData_1) %in% correlatedPredictors_2]
+dim(bankData_2) # 43004 51
+
+# Check again for completely correlated predictors
+corrplot(cor(bankData_2[1:48],
+             use = "complete.obs"),
+         method = "number",
+         tl.cex = 1/par("cex"),
+         cl.cex = 1/par("cex"),
+         addCoefasPercent = TRUE)
+
+corrplot(cor(bankData_2[,c("Attr10","Attr14","Attr18","Attr8","Attr31","Attr42","Attr54","Attr53","Attr49","Attr48","Attr56","Attr62")],
+             use = "complete.obs"),
+         method = "number",
+         tl.cex = 1/par("cex"),
+         cl.cex = 1/par("cex"))
+
+
+# Again found higly correlted variables, Drop them
+correlatedPredictors_3 = c("Attr26","Attr10","Attr52","Attr38")
+bankData_3 = bankData_2[,!names(bankData_2) %in% correlatedPredictors_3]
+dim(bankData_3) # 43004 45
+
+# Again found higly correlted variables, Drop them
+correlatedPredictors_4 = c("Attr28","Attr31")
+bankData_4 = bankData_3[,!names(bankData_3) %in% correlatedPredictors_4]
+dim(bankData_4) # 43004 43
+
+# Again found higly correlted variables, Drop them
+correlatedPredictors_5 = c("Attr18","Attr53","Attr40","Attr42","Attr62")
+bankData_5 = bankData_4[,!names(bankData_4) %in% correlatedPredictors_5]
+dim(bankData_5) # 43004 38
+
+
+# Again found higly correlted variables, Drop them
+correlatedPredictors_6 = c("Attr14","Attr47","Attr46")
+bankData_6 = bankData_5[,!names(bankData_5) %in% correlatedPredictors_6]
+dim(bankData_6) # 43004 35
+
+# Again found higly correlted variables, Drop them
+correlatedPredictors_7 = c("Attr25","Attr12","Attr19","Attr20","Attr64","Attr39","Attr4","Attr51")
+bankData_7 = bankData_6[,!names(bankData_6) %in% correlatedPredictors_7]
+dim(bankData_7) # 43004 27
+
+# Check again for completely correlated predictors: Now r<80
+corrplot(cor(bankData_7[1:26],
+             use = "complete.obs"),
+         method = "number",
+         tl.cex = 1/par("cex"),
+         cl.cex = 1/par("cex"),
+         addCoefasPercent = TRUE)
+```
+#Data Samplimg.# Split dataset into train and test
+```{r}
+#Seed setting.
+set.seed(444)
+# Split dataset into train and test
+standadised_data=scale(bankData[-62],scale=T,center = T)
+bankData1=bankData
+bankData=cbind(data.frame(standadised_data),bankData[62])
+train_RowIDs = createDataPartition(bankData$target,p=as.numeric(prop.table(table(bankData$target))[1]),list = FALSE)
+trainData = bankData[train_RowIDs,]
+testData = bankData[-train_RowIDs,]
+trainData=ROSE(target ~ ., data=trainData, seed=444)$data
+
+prop.table(table(trainData$target))
+prop.table(table(testData$target))
+sum(is.na(trainData));sum(is.na(testData))
+```
+#Used CART on imputed Data.
+```{r}
+regTree=buildCART(target~Attr24+Attr27+Attr34+Attr41+Attr56,trainData)
+predTest=predict(regTree, testData)
+predTest=colnames(predTest)[apply(predTest,1,function(x) which(x==max(x)))]
+
+predTrain=predict(regTree, trainData)
+predTrain=colnames(predTrain)[apply(predTrain,1,function(x) which(x==max(x)))]
+confusionMatrix(predTrain,trainData$target,positive = 'Yes')
+# Build confusion matrix and find accuracy   
+confusionMatrix(predTest,testData$target,positive = 'Yes')
+```
+#Used C5.O on imputed Data.
+```{r}
+#selected the variables according to the varible importance.
+c5Tree=buildC5.0(target~.,trainData)
+predTest <- predict(c5Tree, testData)
+confusionMatrix(predTest,testData$target,positive = 'Yes')
+```
+
+###For Class Sampling Tried out with model with manual Outlier Detection and underSampling.
+## Reading the BankData with manually removed outlier.
+```{r}
+bankData = read.csv(file="C:/Users/saite/Desktop/Cute 03 data set/bankdata_new_withoutOutlier.csv", sep = ",", header = T)
+```
+
+## Visualizing the data and Checking for NA values
+```{r}
+summary(bankData)
+str(bankData)
+sum(is.na(bankData))
+
+```
+## Removing the columns which has more than 5000 missing values
+```{r}
+
+bankData$Attr37 = NULL
+bankData$Attr21 = NULL
+sum(is.na(bankData))
+```
+
+## Imputing the data using KNN Imputation
+
+```{r}
+
+# Splitting the data based on target (Yes or No)
+data_Yes = subset(bankData, bankData$target == "Yes")
+data_No = subset(bankData, bankData$target == "No")
+
+# Imputing the data for both Yes and No class data sets
+dataYes_imputed = centralImputation(data_Yes)
+dataNo_imputed = centralImputation(data_No)
+
+## Merging the data set after Imputation
+bankData_imputed = rbind(dataNo_imputed, dataYes_imputed)
+rm(data_Yes, data_No)
+```
+
+## Standardizing the Dataset
+
+```{r}
+# Removing the target from the imputed data
+target = bankData_imputed$target
+
+# Removing the target column before standardizing
+bankData_imputed$target = NULL
+
+# Standardizing
+bankdata_scaled = decostand(bankData_imputed,"range")
+```
+
+## Analyzing the data
+```{r}
+# It is seen from the Corrplot that there are many columns which are highly correlated, hence removing those columns from the data set
+bankdata_scaled$Attr4 = NULL
+bankdata_scaled$Attr7 = NULL
+bankdata_scaled$Attr18 = NULL
+bankdata_scaled$Attr16 = NULL
+bankdata_scaled$Attr17 = NULL
+bankdata_scaled$Attr19 = NULL
+bankdata_scaled$Attr23 = NULL
+bankdata_scaled$Attr53 = NULL
+# Merging the scaled data with target variable
+bankdata_scaled = cbind(bankdata_scaled, target)
+
+```
+
+## Since dataset is highly imbalanced, dividing the data in Yes and No class first, and then taking 25% random sample NO class data and using 100% Yes class data.
+```{r}
+
+# Splitting the data based on target (Yes or No)
+data_Yes = subset(bankdata_scaled, bankdata_scaled$target == "Yes")
+data_No = subset(bankdata_scaled, bankdata_scaled$target == "No")
+
+set.seed(639)
+total_sampleRows = sample(1:nrow(data_No), nrow(data_No)*0.25)
+sampleData_No = data_No[total_sampleRows,]
+total_sampleData= rbind(sampleData_No, data_Yes)
+
+## Splitting the total_sampleData into test and train
+set.seed(936)
+train_rows = createDataPartition(total_sampleData$target, p=0.7, list = FALSE)
+bank_data_train = total_sampleData[train_rows,]
+bank_data_test = total_sampleData[-train_rows,]
+
+```
+
+## Using Random Forest to build the model
+```{r}
+
+rf_model = randomForest(target ~ ., data=trainData, keep.forest=TRUE, ntree=100)
+
+# Print and understand the model
+print(rf_model)
+```
+
+## Prediction
+```{r}
+# On Training Dataset
+train_pred_rf = predict(rf_model, trainData[,setdiff(names(trainData), "target")], type="response", norm.votes = TRUE)
+
+#Confision Matrix
+confMatrix_train_rf = confusionMatrix( data = train_pred_rf, reference = trainData$target)
+
+
+# On Test Data
+test_pred_rf = predict(rf_model, testData[,setdiff(names(testData), "target")], type="response", norm.votes=TRUE)
+
+# Confusion Matrix
+confMatrix_test_rf = confusionMatrix( data = test_pred_rf, reference = testData$target)
+
+# Printing the Confusion Matrix
+print(confMatrix_train_rf)
+print(confMatrix_test_rf)
+```
