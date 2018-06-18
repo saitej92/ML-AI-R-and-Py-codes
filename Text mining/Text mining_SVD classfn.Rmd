@@ -1,0 +1,138 @@
+---
+title: "Svd text mining assignment"
+author: "Sai teja Gollapinni"
+date: "August 11, 2017"
+output: html_document
+---
+# Dataset:Newsgroups - sci.med& sci.space
+# 1: Creating a corpus
+# 2: Preprocessing operations
+# 3: Creating Document-Term matrix
+# 4: Apply SVD on Document-Term matrix
+# 4: Converting the "U" Matrix into Data Frame
+# 5: Including class information
+# 6: Classification of documents
+#    1: Using a kNN classifier
+#    2: Using a Decision Tree classifier
+#    3: Using a Neural Net
+#    4: Using a Naive Bayes Classifier
+# Set Working Directory
+```{r}
+rm(list=ls(all=T))
+path <- getwd()
+setwd(choose.dir())
+getwd()
+```
+
+# load required library for handling text
+```{r}
+library(tm)
+```
+
+# Create a corpus - a collection of text documents
+```{r}
+getSources()
+getReaders()
+train.med = Corpus(DirSource("sci.med"),
+                    readerControl = list(language='en_US'))
+```
+#writeCorpus(train.med,"temp")
+```{r}
+train.med[[1]]
+as.character(train.med[[1]])
+length(train.med)
+inspect(train.med[1])
+meta(train.med[[1]])
+
+train.space = Corpus(DirSource("sci.space"),
+                     readerControl = list(language='en_US'))
+test.med= Corpus(DirSource("sci.med"),
+                   readerControl = list(language='en_US'))
+test.space = Corpus(DirSource("sci.space"),
+                    readerControl = list(language='en_US'))
+```
+# Create a common corpus
+```{r}
+Corp_tot = c(train.med,train.space,test.med,test.space)
+Corp_tot = Corpus(VectorSource(unlist(Corp_tot)))
+rm(train.med,train.space,test.med,test.space)
+```
+# Necessary preprocessing
+```{r}
+toSpace <- content_transformer(function(x, pattern) gsub(pattern, " ", x))
+docs <- tm_map(Corp_tot, toSpace, "/")
+docs <- tm_map(Corp_tot, toSpace, "@")
+docs <- tm_map(Corp_tot, toSpace, "\\|")
+
+Corp_tot = tm_map(Corp_tot, removePunctuation)
+
+Corp_tot = tm_map(Corp_tot, removeNumbers)
+
+Corp_tot = tm_map(Corp_tot, tolower)
+
+Corp_tot = tm_map(Corp_tot, removeWords, stopwords("english"))
+#Corp_tot = tm_map(Corp_tot, removeWords, c(stopwords("english"),"organization","lines","can"))
+Corp_tot
+Corp_tot = tm_map(Corp_tot, stemDocument, language="english")
+
+Corp_tot = tm_map(Corp_tot, stripWhitespace)
+
+as.character(Corp_tot[[1]])
+```
+#Constructs or coerces to a document-term matrix
+```{r}
+dt_matrix <-DocumentTermMatrix(Corp_tot, 
+                               control=list(weighting=weightTfIdf, 
+                                            minWordLength=2, 
+                                            minDocFreq=5)) 
+dt_matrix
+inspect(dt_matrix[1:2,1:5])
+```
+# Remove sparse terms from a document-term matrix
+```{r}
+dt_matrix <- removeSparseTerms(dt_matrix, 0.90)
+```
+#Display detailed information on a document-term matrix
+```{r}
+inspect(dt_matrix[1:2,1:5])
+
+dim(dt_matrix)
+```
+# Applying SVD on Document-Term Matrix
+#princomp uses SVD internally
+#prcomp uses aegan 
+
+```{r}
+svd = svd(as.matrix(dt_matrix))
+matrix = svd$u
+```
+# Convert to dataframe
+```{r}
+data = as.data.frame(matrix)
+data <- data[apply(data, 1, function(x) !all(x==0)),]
+```
+# Attach Class label
+```{r}
+target = as.factor(c(rep('med',1000), rep('spe',1000), rep('spe',1000), rep('med',1000)))
+data <- cbind(data,target)
+
+
+train = data[1:(1000+1000),]
+test = data[-c(1:(1000+1000)),]
+
+rm(list = setdiff(ls(),c("train","test","data")))
+```
+#### Classification Task
+# Using Decision Tree
+
+```{r}
+library(rpart)
+rpart_model = rpart(target~.,train)
+table(test$target,predict(rpart_model,test,type = "class"))
+```
+# Using Naive Bayes
+```{r}
+library(e1071)
+nb_model = naiveBayes(x = train,y = train$target)
+table(test$target,predict(nb_model,test[,-146],type = "class"))
+```
