@@ -1,0 +1,246 @@
+---
+title: "Cluster Analysis for Crime Data"
+author: "Clustering INSOFE Lab Assignment"
+date: "16 July 2017"
+output:
+  html_document:
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+---
+
+**NOTE** Before starting this assignment please remember to clear your environment, you can do that by running the following code chunk
+
+```{r}
+
+
+```
+
+# Agenda
+
+* Get the data
+
+* Data pre-processing
+
+* Explore the data
+
+* Hierarchical Clustering
+
+* Kmeans Clustering
+
+* Visualising Clusters and Evaluation
+
+
+# Problem Description
+
+* In the following Unsupervised Learning activity, you will perform cluster analysis on a dataset that has arrests per 100,000 residents for assault, murder, and rape in each of the 50 US states
+
+* The variable names in the dataset are self explanatory
+
+* So, you will cluster US states based on the crime rates, which can then be passed on to public policy experts to gain insight from it
+
+
+# Reading & Understanding the Data
+
+* Read in the dataset
+
+```{r}
+
+# Use the setwd() function to get to the directory where the data is present
+rm(list=ls(all=T))
+setwd("C:/Users/saite/Desktop/Cluster analysis Assignment/cluster-analysis-saitej92-master")
+getwd()
+crimedata= read.csv("crime_data.csv", header= T, sep = ",")
+```
+
+* Use the str() and summary() functions to get a feel for the dataset.
+
+```{r}
+str(crimedata)
+summary(crimedata)
+
+```
+
+* Take a look at the data using the "head()" and "tail()" functions
+
+```{r}
+head(crimedata)
+tail(crimedata)
+
+```
+
+# Data pre-processing
+
+* Check for the number of missing values in the dataset
+
+```{r}
+
+sum(is.na(crimedata))
+
+
+```
+
+
+* Convert the State names into row names and remove that variable from the dataset
+
+```{r}
+
+rownames(crimedata)=crimedata$State
+crimedata$State = NULL
+
+
+```
+
+* Standardize and scale the data
+
+```{r}
+crimedata <- scale(crimedata, center = T, scale = T)
+
+
+```
+
+# Data exploration
+
+* Visualise the distances between the individual observations using the fviz_dist()
+
+```{r, fig.width=12, fig.height=8}
+
+
+library(factoextra)
+
+distance <- get_dist(crimedata)
+
+fviz_dist(distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+
+```
+
+# Hierarchical Clustering
+
+* Cluster the data using the Ward algorithm
+
+```{r}
+
+dist <- dist(crimedata, method = "euclidean")
+
+hc_fit <- hclust(dist, method = "ward.D2")
+
+
+
+
+```
+
+* Plot the dendogram for hierarchical clustering
+
+```{r, fig.height=5, fig.width=10}
+
+plot(hc_fit)
+
+```
+
+* Cut the tree to 4 clusters
+
+```{r}
+
+
+points_hc <- cutree(hc_fit, k = 4)
+
+crimedata_clusts_hc <- cbind(points_hc, crimedata)
+
+colnames(crimedata_clusts_hc)[1] <- "cluster_hc"
+head(crimedata_clusts_hc)
+
+```
+
+* Plot a new dendogram, with each of the clusters being surrounded by a border, using the rect.hclust() function
+
+```{r, fig.height=5, fig.width=10}
+
+
+plot(hc_fit)
+
+rect.hclust(hc_fit, k = 6, border = "red")
+
+
+```
+
+
+# K-Means Clustering
+
+* Build a basic kmeans model with k = 2
+
+```{r}
+
+set.seed(123)
+km_basic <- kmeans(crimedata, centers = 2)
+
+str(km_basic)
+
+fviz_cluster(km_basic,crimedata)
+
+
+```
+
+* Build a scree plot and choose a "k"
+
+```{r}
+
+
+# Initialize wss to 0
+
+wss <- 0
+
+# From 1 upto upto 10 cluster centers, fit the kmeans model
+
+for (i in 1:10) {
+  
+  cfit = kmeans(crimedata, centers = i)
+  
+  # Store the sum of within sum of square
+  
+  wss[i] <- sum(cfit$withinss)
+  
+}
+plot(1:10, wss, type = "b",xlab = "no of clusters",ylab = "within sum of squares")
+
+
+set.seed(123)
+
+fviz_nbclust(crimedata, kmeans, method = "wss")
+
+
+
+
+
+```
+
+* Choose a k and cluster the data
+
+```{r}
+
+# We can choose a k = 4, 5 or 6
+#choose k as 4 
+km_clust <- kmeans(crimedata, 4, nstart = 10)
+
+# after choosing k as 4, let's store the cluster groupings along with the data in a new data frame
+
+km_points <- km_clust$cluster
+
+# Store the cluster assignments in a new data frame
+
+crimedata_clusts_km <- as.data.frame(cbind(km_clust$cluster, crimedata))
+
+# Look at the head of the data
+
+head(crimedata_clusts_km)
+colnames(crimedata_clusts_km)[1] <- "cluster_km"
+
+```
+
+* Visualise the clusters by plotting the data points on the first two principal components
+
+```{r, fig.height=5, fig.width=8}
+
+fviz_cluster(km_clust, crimedata)
+
+```
+
